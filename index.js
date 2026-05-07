@@ -31,26 +31,24 @@ async function configureEmailTransporter() {
 
   try {
     if (EMAIL_HOST === "smtp.gmail.com") {
-      // Gmail SMTP configuration
-      if (!EMAIL_USER || !EMAIL_PASS) {
-        console.error("❌ Gmail SMTP requires EMAIL_USER and EMAIL_PASS to be set.");
-        console.error("   Please set your Gmail address and App Password in .env");
-        return;
-      }
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    console.error("❌ Gmail SMTP requires EMAIL_USER and EMAIL_PASS to be set.");
+    return;
+  }
 
-      emailTransporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: EMAIL_USER,
-          pass: EMAIL_PASS,
-        },
-      });
+  emailTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
 
-      console.log("🔧 Gmail SMTP transport configured for production email delivery.");
-      console.log(`   From: ${EMAIL_FROM}`);
-      console.log("   ✅ Ready to send real emails to students!");
-
-    } else if (EMAIL_HOST === "smtp.ethereal.email") {
+  console.log("🔧 Gmail SMTP (TLS/587) transport configured.");
+  console.log(`   From: ${EMAIL_FROM}`);
+} else if (EMAIL_HOST === "smtp.ethereal.email") {
       // Ethereal test configuration (fallback)
       const shouldUseEtherealTestAccount =
         !EMAIL_USER || !EMAIL_PASS || EMAIL_USER === "testuser@ethereal.email" || EMAIL_PASS === "testpass123";
