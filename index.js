@@ -117,32 +117,12 @@ async function configureEmailTransporter() {
 await configureEmailTransporter();
 
 const app = express();
-const cors = require('cors');
 
-const allowedOrigins = [
-  'http://localhost:5173',              // Local development
-  'http://127.0.0.1:5173',              // Local development alternative
-  'http://localhost:5174',              // Additional local port if needed
-  'http://127.0.0.1:5174',              // Additional local port if needed
-  'https://u-ba-complaint-q0b4d4f64-nyuydinecedrics-projects.vercel.app'  // Your live frontend
-];
+// ========== CORS CONFIGURATION (FIXED) ==========
+// Allow all origins temporarily to fix CORS errors
+app.use(cors());
+app.options('*', cors()); // Handle preflight requests
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-// Handle preflight requests
-app.options('*', cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
