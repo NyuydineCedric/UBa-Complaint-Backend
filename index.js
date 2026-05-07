@@ -118,10 +118,24 @@ await configureEmailTransporter();
 
 const app = express();
 
-// ========== CORS CONFIGURATION (FIXED) ==========
-// Allow all origins temporarily to fix CORS errors
-app.use(cors());
-app.options('*', cors()); // Handle preflight requests
+// ========== MANUAL CORS MIDDLEWARE (MOST RELIABLE) ==========
+app.use((req, res, next) => {
+  const allowedOrigins = ['*']; // Allow all origins (for testing)
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes('*')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
