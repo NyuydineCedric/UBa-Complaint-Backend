@@ -1,7 +1,7 @@
 /* global process */
 import express from "express";
 import cors from "cors";
-import { Resend } from 'resend';
+import brevo from '@getbrevo/brevo';
 import dotenv from "dotenv";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
@@ -14,8 +14,16 @@ const __dirname = path.dirname(__filename);
 const DATA_FILE = path.join(__dirname, "data.json");
 const PORT = process.env.PORT || 4000;
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Brevo API client
+let brevoApiInstance = null;
+if (process.env.BREVO_API_KEY) {
+  brevoApiInstance = new brevo.TransactionalEmailsApi();
+  let apiKeyAuth = brevoApiInstance.authentications['apiKey'];
+  apiKeyAuth.apiKey = process.env.BREVO_API_KEY;
+  console.log("✅ Brevo configured for email sending");
+} else {
+  console.warn("⚠️ BREVO_API_KEY missing. Email notifications disabled.");
+}
 
 const app = express();
 
@@ -40,10 +48,10 @@ async function writeData(data) {
   await writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// Email via Resend (HTTPS, no SMTP)
+// Email via Brevo (HTTPS API – works on Render free tier)
 async function sendNotificationEmail(to, subject, text) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log("Email not sent: RESEND_API_KEY missing.");
+  if (!brevoApiInstance) {
+    console.log("Email not sent: Brevo API not configured.");
     return;
   }
   if (!to) {
@@ -51,21 +59,22 @@ async function sendNotificationEmail(to, subject, text) {
     return;
   }
 
-  const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev"; // Resend's default sender for testing
+  // The "from" address MUST be a verified sender in your Brevo account.
+  // Verify your email at: https://app.brevo.com/settings/domains
+  const fromEmail = process.env.EMAIL_FROM || "nyuydinecedric@gmail.com";
+  const fromName = "UBa Complaint System";
+
+  let sendSmtpEmail = new brevo.SendSmtpEmail();
+  sendSmtpEmail.subject = subject;
+  sendSmtpEmail.to = [{ email: to }];
+  sendSmtpEmail.textContent = text;
+  sendSmtpEmail.sender = { name: fromName, email: fromEmail };
+
   try {
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
-      to: [to],
-      subject,
-      text,
-    });
-    if (error) {
-      console.error("Resend error:", error);
-    } else {
-      console.log(`✅ Email sent to ${to}, ID: ${data.id}`);
-    }
-  } catch (err) {
-    console.error("Failed to send email:", err.message);
+    const response = await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Email sent to ${to} via Brevo. Message ID: ${response.messageId}`);
+  } catch (error) {
+    console.error("❌ Brevo error:", error.response?.body || error.message);
   }
 }
 
