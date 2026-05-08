@@ -1,7 +1,7 @@
 /* global process */
 import express from "express";
 import cors from "cors";
-import * as brevo from '@getbrevo/brevo';
+import axios from "axios";
 import dotenv from "dotenv";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
@@ -13,16 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.join(__dirname, "data.json");
 const PORT = process.env.PORT || 4000;
-
-// Initialize Brevo API client
-let brevoApiInstance = null;
-if (process.env.BREVO_API_KEY) {
-  brevoApiInstance = new brevo.TransactionalEmailsApi();
-  brevoApiInstance.apiKey = process.env.BREVO_API_KEY;
-  console.log("✅ Brevo configured for email sending");
-} else {
-  console.warn("⚠️ BREVO_API_KEY missing. Email notifications disabled.");
-}
 
 const app = express();
 
@@ -47,10 +37,11 @@ async function writeData(data) {
   await writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// Email via Brevo (HTTPS API – works on Render free tier)
+// Send email via Brevo REST API (no SDK needed)
 async function sendNotificationEmail(to, subject, text) {
-  if (!brevoApiInstance) {
-    console.log("Email not sent: Brevo API not configured.");
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.log("Email not sent: BREVO_API_KEY missing.");
     return;
   }
   if (!to) {
@@ -61,17 +52,25 @@ async function sendNotificationEmail(to, subject, text) {
   const fromEmail = process.env.EMAIL_FROM || "nyuydinecedric@gmail.com";
   const fromName = "UBa Complaint System";
 
-  const sendSmtpEmail = new brevo.SendSmtpEmail();
-  sendSmtpEmail.subject = subject;
-  sendSmtpEmail.to = [{ email: to }];
-  sendSmtpEmail.textContent = text;
-  sendSmtpEmail.sender = { name: fromName, email: fromEmail };
-
   try {
-    const response = await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Email sent to ${to} via Brevo. Message ID: ${response.messageId}`);
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: to }],
+        subject: subject,
+        textContent: text,
+      },
+      {
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log(`✅ Email sent to ${to} via Brevo. Message ID: ${response.data.messageId}`);
   } catch (error) {
-    console.error("❌ Brevo error:", error.response?.body || error.message);
+    console.error("❌ Brevo error:", error.response?.data || error.message);
   }
 }
 

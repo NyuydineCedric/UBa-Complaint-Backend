@@ -20,6 +20,7 @@
   "homepage": "https://github.com/NyuydineCedric/UBa-Complaint-Backend#readme",
   "dependencies": {
     "@getbrevo/brevo": "^5.0.4",
+    "axios": "^1.16.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
