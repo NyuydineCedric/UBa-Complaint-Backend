@@ -1,7 +1,7 @@
 /* global process */
 import express from "express";
 import cors from "cors";
-import axios from "axios";
+import sgMail from '@sendgrid/mail';
 import dotenv from "dotenv";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
@@ -13,6 +13,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.join(__dirname, "data.json");
 const PORT = process.env.PORT || 4000;
+
+// Initialize SendGrid
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log("✅ SendGrid configured for email sending");
+} else {
+  console.warn("⚠️ SENDGRID_API_KEY missing. Email notifications disabled.");
+}
 
 const app = express();
 
@@ -37,11 +45,10 @@ async function writeData(data) {
   await writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// Send email via Brevo REST API (no SDK needed)
+// Send email via SendGrid (sends to any recipient)
 async function sendNotificationEmail(to, subject, text) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    console.log("Email not sent: BREVO_API_KEY missing.");
+  if (!process.env.SENDGRID_API_KEY) {
+    console.log("Email not sent: SendGrid API key missing.");
     return;
   }
   if (!to) {
@@ -49,28 +56,22 @@ async function sendNotificationEmail(to, subject, text) {
     return;
   }
 
-  const fromEmail = process.env.EMAIL_FROM || "nyuydinecedric@gmail.com";
+  // ✅ Your verified single sender email
+  const fromEmail = "nyuydinecedric@gmail.com";
   const fromName = "UBa Complaint System";
 
+  const msg = {
+    to: to,
+    from: { email: fromEmail, name: fromName },
+    subject: subject,
+    text: text,
+  };
+
   try {
-    const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
-      {
-        sender: { name: fromName, email: fromEmail },
-        to: [{ email: to }],
-        subject: subject,
-        textContent: text,
-      },
-      {
-        headers: {
-          'api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    console.log(`✅ Email sent to ${to} via Brevo. Message ID: ${response.data.messageId}`);
+    await sgMail.send(msg);
+    console.log(`✅ Email sent to ${to} via SendGrid.`);
   } catch (error) {
-    console.error("❌ Brevo error:", error.response?.data || error.message);
+    console.error(`❌ SendGrid error:`, error.response?.body || error.message);
   }
 }
 
