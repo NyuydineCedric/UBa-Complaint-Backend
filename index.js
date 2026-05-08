@@ -1,7 +1,7 @@
 /* global process */
 import express from "express";
 import cors from "cors";
-import { TransactionalEmailsApi, SendSmtpEmail } from '@getbrevo/brevo';
+import * as brevo from '@getbrevo/brevo';
 import dotenv from "dotenv";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000;
 // Initialize Brevo API client
 let brevoApiInstance = null;
 if (process.env.BREVO_API_KEY) {
-  brevoApiInstance = new TransactionalEmailsApi();
+  brevoApiInstance = new brevo.TransactionalEmailsApi();
   brevoApiInstance.apiKey = process.env.BREVO_API_KEY;
   console.log("✅ Brevo configured for email sending");
 } else {
@@ -58,11 +58,10 @@ async function sendNotificationEmail(to, subject, text) {
     return;
   }
 
-  // The "from" address MUST be a verified sender in your Brevo account.
   const fromEmail = process.env.EMAIL_FROM || "nyuydinecedric@gmail.com";
   const fromName = "UBa Complaint System";
 
-  const sendSmtpEmail = new SendSmtpEmail();
+  const sendSmtpEmail = new brevo.SendSmtpEmail();
   sendSmtpEmail.subject = subject;
   sendSmtpEmail.to = [{ email: to }];
   sendSmtpEmail.textContent = text;
